@@ -30,13 +30,14 @@ PERFECT_PIXEL_MAP = { # Pixel size : Position in selection menu
     16: 1,
     32: 0
 }
-# Values for correction of center for different Canvas modes, determent by offset from (1,1)
+# Values for correction of center for different Canvas modes, determent by offset from (1,1) WIP
 CANVAS_CORRECTION_VALUES = {
     "square": (0,0),
     "book": (38,0),
     "tv": (0,68),
 }
 STARTING_PIXEL = (1,1)
+FALLBACK_LOOPS = 5 # This is used to handle skipped inputs for canvas_move and colour_move this should eliminate pixel shifts
 
 def can_handle(d) -> bool:
     if d["source"] == "living-the-grid.gozapp.dev" and d["version"] >= 2:
@@ -51,7 +52,7 @@ with open(args.file, "r", encoding="utf-8") as f:
 if not can_handle(data):
     raise ValueError("Invalid JSON")
 
-# Setup of needed Variables
+# Setup of needed editable Variables
 default_grid_pos = DEFAULT_CANVAS_POS
 preset_canvas_size = REAL_CANVAS_SIZE
 canvas_pos = DEFAULT_CANVAS_POS
@@ -74,7 +75,10 @@ else:
 print("file read")
 
 # Function definitions
-def calibrate_default():
+def fallback_loop_value(value : float, n : int = 2) -> float: #Calculate end value * FALLBACK_LOOPS = value
+    return round(value / FALLBACK_LOOPS, n)
+
+def calibrate_default(): # Move offset for smooth Pixel sizes gets applied here
     global default_grid_pos, canvas_pos, preset_canvas_size
     goto(default_grid_pos)
     correction_x, correction_y = CANVAS_CORRECTION_VALUES[canvas["preset"]]
@@ -88,11 +92,14 @@ def calibrate_default():
 def canvas_move(right : int = 0, down : int = 0, override_pixelsize : bool = False) -> None:
     global canvas_pos
     canvas_pos = (canvas_pos[0] + right, canvas_pos[1] + down)
+
     # account for smooth pixels pixel size since It's still the full grid.
     if brush["mode"] == "smooth" and not override_pixelsize:
         pixelsize_multiplier = brush["px"]
         right *= pixelsize_multiplier
         down *= pixelsize_multiplier
+
+    # Makes list of needed inputs to move by x, y
     move_inputs : list[str] = []
     while right != 0 or down != 0:
         move_input : str = ""
@@ -108,8 +115,15 @@ def canvas_move(right : int = 0, down : int = 0, override_pixelsize : bool = Fal
         elif down < 0:
             move_input += "DPAD_UP "
             down += 1
-        move_input += "0.08s\n0.18s\n"
+        move_input += "0.1s\n"
+
+        # applying Fallback loops in case an input gets lost
+        for _ in range(FALLBACK_LOOPS):
+            move_input += f"{fallback_loop_value(0.1)}s\n"
         move_inputs.append(move_input)
+
+    # "End" of input, gets removed in output macro
+    # Loops though list and combines repeated inputs to loops
     move_inputs.append("END")
     move_macro: str = ""
     if move_inputs:
@@ -123,17 +137,22 @@ def canvas_move(right : int = 0, down : int = 0, override_pixelsize : bool = Fal
                 current_input_string = ips
             else:
                 move_macro += f"LOOP {loop_count}\n\t"
-                move_macro += current_input_string.replace("\n", "\n\t", 1)
+                move_macro += current_input_string.replace("\n", "\n\t", FALLBACK_LOOPS * 1)
                 current_input_string = ips
                 loop_count = 1
+
+    # Execute macro
     if move_macro:
         print(move_macro)
         nx.macro(controller_index, move_macro)
         sleep(0.02)
 
+
 def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value cant be changed at the same time!!!
     global colour_pos
     colour_pos = (colour_pos[0] + h, colour_pos[1] + s, colour_pos[2] + b)
+
+    # Makes list of needed inputs to move by h, s, b.
     colour_inputs : list[str] = []
     while h != 0 or s != 0 or b != 0:
         colour_input: str = ""
@@ -155,8 +174,15 @@ def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value 
         elif b < 0:
             colour_input += "DPAD_DOWN "
             b += 1
-        colour_input += "0.08s\n0.18s\n"
+        colour_input += "0.1s\n"
+
+        # applying Fallback loops in case an input gets lost
+        for _ in range(FALLBACK_LOOPS):
+            colour_input += f"{fallback_loop_value(0.1)}s\n"
         colour_inputs.append(colour_input)
+
+    # "End" of input, gets removed in output macro
+    # Loops though list and combines repeated inputs to loops
     colour_inputs.append("END")
     colour_macro: str = ""
     if colour_inputs:
@@ -170,19 +196,21 @@ def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value 
                 current_input_string = ips
             else:
                 colour_macro += f"LOOP {loop_count}\n\t"
-                colour_macro += current_input_string.replace("\n", "\n\t", 1)
+                colour_macro += current_input_string.replace("\n", "\n\t", FALLBACK_LOOPS * 1)
                 current_input_string = ips
                 loop_count = 1
+
+    # Execute macro
     if colour_macro:
         print(colour_macro)
         nx.macro(controller_index, colour_macro)
         sleep(0.02)
 
-def goto(pos_xy : tuple[int,int]) -> None:
+def goto(pos_xy : tuple[int,int]) -> None: # Move to Position (X, Y)
     canvas_move(pos_xy[0] - canvas_pos[0], pos_xy[1] - canvas_pos[1])
 
 
-def set_colour(colour_hsb : tuple[int,int,int]) -> None:
+def set_colour(colour_hsb : tuple[int,int,int]) -> None: # Sets colour to (H, S, B) can only be used outside any other menü
     nx.press_buttons(controller_index, [nuxbt.Buttons.Y])
     sleep(0.2)
     nx.press_buttons(controller_index, [nuxbt.Buttons.Y])
@@ -296,6 +324,7 @@ sleep(0.2)
 
 """
 
+# GOTO all positions of colour i and place a pixel there
 for i in range(len(picture_matrix)):
     set_colour(palette[i])
     for pos in picture_matrix[i]:

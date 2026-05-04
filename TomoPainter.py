@@ -121,7 +121,7 @@ def canvas_move(right : int = 0, down : int = 0, override_pixelsize : bool = Fal
     if move_inputs:
         for mi in move_inputs:
             gp2040.press_buttons(mi)
-            sleep(0.05)
+            sleep(0.075)
 
 
 def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value cant be changed at the same time!!!
@@ -155,13 +155,14 @@ def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value 
     if colour_inputs:
         for ci in colour_inputs:
             gp2040.press_buttons(ci)
-            sleep(0.05)
+            sleep(0.075)
 
 def goto(pos_xy : tuple[int,int]) -> None: # Move to Position (X, Y)
     canvas_move(pos_xy[0] - canvas_pos[0], pos_xy[1] - canvas_pos[1])
 
 
 def set_colour(colour_hsb : tuple[int,int,int]) -> None: # Sets colour to (H, S, B) can only be used outside any other menü
+    sleep(0.1)
     gp2040.press_buttons([gp2040.Y])
     sleep(0.2)
     gp2040.press_buttons([gp2040.Y])

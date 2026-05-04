@@ -1,4 +1,4 @@
-import nuxbt
+import gp2040pico.picoinput as gp2040
 from time import sleep
 import json
 import argparse
@@ -100,52 +100,28 @@ def canvas_move(right : int = 0, down : int = 0, override_pixelsize : bool = Fal
         down *= pixelsize_multiplier
 
     # Makes list of needed inputs to move by x, y
-    move_inputs : list[str] = []
+    move_inputs : list[list[int]] = []
     while right != 0 or down != 0:
-        move_input : str = ""
+        move_input : list[int] = []
         if right > 0:
             right -= 1
-            move_input += "DPAD_RIGHT "
+            move_input.append(gp2040.DPAD_RIGHT)
         elif right < 0:
-            move_input += "DPAD_LEFT "
+            move_input.append(gp2040.DPAD_LEFT)
             right += 1
         if down > 0:
-            move_input += "DPAD_DOWN "
+            move_input.append(gp2040.DPAD_DOWN)
             down -= 1
         elif down < 0:
-            move_input += "DPAD_UP "
+            move_input.append(gp2040.DPAD_UP)
             down += 1
-        move_input += "0.1s\n"
-
-        # applying Fallback loops in case an input gets lost
-        for _ in range(FALLBACK_LOOPS):
-            move_input += f"{fallback_loop_value(0.1)}s\n"
         move_inputs.append(move_input)
 
-    # "End" of input, gets removed in output macro
-    # Loops though list and combines repeated inputs to loops
-    move_inputs.append("END")
-    move_macro: str = ""
-    if move_inputs:
-        current_input_string: str = move_inputs[0]
-        loop_count: int = 0
-        for ips in move_inputs:
-            if ips == current_input_string:
-                loop_count += 1
-            elif ips != current_input_string and loop_count == 1:
-                move_macro += current_input_string
-                current_input_string = ips
-            else:
-                move_macro += f"LOOP {loop_count}\n\t"
-                move_macro += current_input_string.replace("\n", "\n\t", FALLBACK_LOOPS * 1)
-                current_input_string = ips
-                loop_count = 1
-
     # Execute macro
-    if move_macro:
-        print(move_macro)
-        nx.macro(controller_index, move_macro)
-        sleep(0.02)
+    if move_inputs:
+        for mi in move_inputs:
+            gp2040.press_buttons(mi)
+            sleep(0.075)
 
 
 def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value cant be changed at the same time!!!
@@ -153,71 +129,47 @@ def colour_move(h : int = 0, s : int = 0, b : int = 0) -> None: # h and s value 
     colour_pos = (colour_pos[0] + h, colour_pos[1] + s, colour_pos[2] + b)
 
     # Makes list of needed inputs to move by h, s, b.
-    colour_inputs : list[str] = []
+    colour_inputs : list[list[int]] = []
     while h != 0 or s != 0 or b != 0:
-        colour_input: str = ""
+        colour_input: list[int] = []
         if h > 0:
             h -= 1
-            colour_input += "ZR "
+            colour_input.append(gp2040.ZR)
         elif h < 0:
-            colour_input += "ZL "
+            colour_input.append(gp2040.ZL)
             h += 1
         if s > 0:
             s -= 1
-            colour_input += "DPAD_RIGHT "
+            colour_input.append(gp2040.DPAD_RIGHT)
         elif s < 0:
-            colour_input += "DPAD_LEFT "
+            colour_input.append(gp2040.DPAD_LEFT)
             s += 1
         elif b > 0:
-            colour_input += "DPAD_UP "
+            colour_input.append(gp2040.DPAD_UP)
             b -= 1
         elif b < 0:
-            colour_input += "DPAD_DOWN "
+            colour_input.append(gp2040.DPAD_DOWN)
             b += 1
-        colour_input += "0.1s\n"
-
-        # applying Fallback loops in case an input gets lost
-        for _ in range(FALLBACK_LOOPS):
-            colour_input += f"{fallback_loop_value(0.1)}s\n"
         colour_inputs.append(colour_input)
 
-    # "End" of input, gets removed in output macro
-    # Loops though list and combines repeated inputs to loops
-    colour_inputs.append("END")
-    colour_macro: str = ""
     if colour_inputs:
-        current_input_string: str = colour_inputs[0]
-        loop_count: int = 0
-        for ips in colour_inputs:
-            if ips == current_input_string:
-                loop_count += 1
-            elif ips != current_input_string and loop_count == 1:
-                colour_macro += current_input_string
-                current_input_string = ips
-            else:
-                colour_macro += f"LOOP {loop_count}\n\t"
-                colour_macro += current_input_string.replace("\n", "\n\t", FALLBACK_LOOPS * 1)
-                current_input_string = ips
-                loop_count = 1
-
-    # Execute macro
-    if colour_macro:
-        print(colour_macro)
-        nx.macro(controller_index, colour_macro)
-        sleep(0.02)
+        for ci in colour_inputs:
+            gp2040.press_buttons(ci)
+            sleep(0.075)
 
 def goto(pos_xy : tuple[int,int]) -> None: # Move to Position (X, Y)
     canvas_move(pos_xy[0] - canvas_pos[0], pos_xy[1] - canvas_pos[1])
 
 
 def set_colour(colour_hsb : tuple[int,int,int]) -> None: # Sets colour to (H, S, B) can only be used outside any other menü
-    nx.press_buttons(controller_index, [nuxbt.Buttons.Y])
+    sleep(0.1)
+    gp2040.press_buttons([gp2040.Y])
     sleep(0.2)
-    nx.press_buttons(controller_index, [nuxbt.Buttons.Y])
+    gp2040.press_buttons([gp2040.Y])
     sleep(0.2)
-    nx.press_buttons(controller_index, [nuxbt.Buttons.R])
+    gp2040.press_buttons([gp2040.R])
     colour_move(colour_hsb[0] - colour_pos[0], colour_hsb[1] - colour_pos[1], colour_hsb[2] - colour_pos[2])
-    nx.press_buttons(controller_index, [nuxbt.Buttons.B])
+    gp2040.press_buttons([gp2040.B])
     sleep(0.3)
 
 # Starting macro to print the image from JSON File
@@ -225,37 +177,24 @@ print("Enter the Canvas without giving any inputs and navigate to the Change Gri
 print("Make sure that no Joycons are conneted to the Switch")
 input("Press Enter to continue...")
 
-# Starting NUXBT service
-print("Initialing Nuxbt.")
-nx = nuxbt.Nuxbt()
-print("Nuxbt initialized.")
-
-
-
-controller_index = nx.create_controller(nuxbt.PRO_CONTROLLER,colour_body=[255,234,0],colour_buttons=[0,0,0])
-
-print("Controller created.")
 print("Connecting to Switch...")
-nx.wait_for_connection(controller_index)
-print("Connected to Switch.")
-print("Continue when Pro Controller is showing up as Connected.")
-input("Press Enter to continue...")
-
+gp2040.connect()
+input("press enter to continue...")
 # Opening Tomodatchi Live LTD
-nx.press_buttons(controller_index, [nuxbt.Buttons.A])
+gp2040.press_buttons([gp2040.A])
 sleep(2)
-nx.press_buttons(controller_index, [nuxbt.Buttons.B])
+gp2040.press_buttons([gp2040.B])
 sleep(1.5)
-nx.press_buttons(controller_index, [nuxbt.Buttons.HOME])
+gp2040.press_buttons([gp2040.HOME])
 sleep(1)
 
 # Sececting Brush and applying offset if needed
 for i in range(2):
-    nx.press_buttons(controller_index, [nuxbt.Buttons.X])
+    gp2040.press_buttons([gp2040.X])
     sleep(0.1)
 match brush["mode"]:
     case "smooth":
-        nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_DOWN])
+        gp2040.press_buttons([gp2040.DPAD_DOWN])
         sleep(0.1)
         brush_offset, loops = SMOOTH_PIXEL_MAP.get(brush["px"],(None,None))
         if (brush_offset, loops) == (None,None):
@@ -263,35 +202,35 @@ match brush["mode"]:
         print("here")
         if loops < 0:
             for i in range(abs(loops)):
-                nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_LEFT])
+                gp2040.press_buttons([gp2040.DPAD_LEFT])
                 sleep(0.1)
         elif loops > 0:
             for i in range(abs(loops)):
-                nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_RIGHT])
+                gp2040.press_buttons([gp2040.DPAD_RIGHT])
                 sleep(0.1)
 
     case "pixel":
         for i in range(2):
-            nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_UP])
+            gp2040.press_buttons([gp2040.DPAD_UP])
             sleep(0.1)
-        nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_RIGHT])
+        gp2040.press_buttons([gp2040.DPAD_RIGHT])
         sleep(0.1)
-        nx.press_buttons(controller_index, [nuxbt.Buttons.A])
+        gp2040.press_buttons([gp2040.A])
         sleep(0.1)
         for i in range(2):
-            nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_DOWN])
+            gp2040.press_buttons([gp2040.DPAD_DOWN])
             sleep(0.1)
         loops = PERFECT_PIXEL_MAP.get(brush["px"], None)
         if loops is None:
             raise ValueError("Brush Size unsupported for mode Pixel-perfect")
         if loops != 0:
             for i in range(abs(loops)):
-                nx.press_buttons(controller_index, [nuxbt.Buttons.DPAD_LEFT])
+                gp2040.press_buttons([gp2040.DPAD_LEFT])
                 sleep(0.1)
 
-nx.press_buttons(controller_index, [nuxbt.Buttons.A])
+gp2040.press_buttons([gp2040.A])
 sleep(0.1)
-nx.press_buttons(controller_index, [nuxbt.Buttons.B])
+gp2040.press_buttons([gp2040.B])
 sleep(0.5)
 calibrate_default()
 sleep(2)
@@ -316,10 +255,10 @@ print(len(picture_matrix))
 # Test
 """
 goto((1,1))
-nx.press_buttons(controller_index, [nuxbt.Buttons.A])
+gp2040.press_buttons([gp2040.A])
 sleep(0.2)
 goto(max_grid_pos)
-nx.press_buttons(controller_index, [nuxbt.Buttons.A])
+gp2040.press_buttons([gp2040.A])
 sleep(0.2)
 
 """
@@ -330,6 +269,6 @@ for i in range(len(picture_matrix)):
     for pos in picture_matrix[i]:
         print(pos)
         goto(pos)
-        sleep(0.2)
-        nx.press_buttons(controller_index, [nuxbt.Buttons.A])
-        sleep(0.2)
+        sleep(0.1)
+        gp2040.press_buttons([gp2040.A])
+        sleep(0.1)

@@ -13,6 +13,10 @@ parser.add_argument('file', help="JSON file from Living the Grid")
 args = parser.parse_args()
 
 # Constant Variables
+VALID_SOURCES = [
+    "living-the-grid.gozapp.dev",
+    "living-the-grid.com",
+]
 REAL_CANVAS_SIZE = (256, 256) # size of actual canvas
 DEFAULT_CANVAS_POS = (129, 129) # X , Y
 DEFAULT_colour_POS = (0,0,0) # Hue, Saturation, Brightness
@@ -40,7 +44,7 @@ STARTING_PIXEL = (1,1)
 FALLBACK_LOOPS = 5 # This is used to handle skipped inputs for canvas_move and colour_move this should eliminate pixel shifts
 
 def can_handle(d) -> bool:
-    if d["source"] == "living-the-grid.gozapp.dev" and d["version"] >= 2:
+    if d["source"] in VALID_SOURCES and d["version"] >= 2:
         return True
     return False
 
